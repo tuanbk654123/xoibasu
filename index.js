@@ -86,9 +86,13 @@ app.post('/api/orders', async (req, res) => {
     const preorderLine = order.preorder?.enabled ? `\n⏰ Nhận: ${order.preorder.date || ''} ${order.preorder.time || ''}` : '';
     const paymentLine = `\n💳 Thanh toán: ${order.payment_status === 'paid' ? 'ĐÃ THANH TOÁN (QR)' : 'Chưa thanh toán'}`;
     const text = `\uD83D\uDCDD Đơn hàng mới #${id}\nKhách: ${order.customer_name}\nSĐT: ${order.customer_phone}\nĐịa chỉ: ${order.shipping_method === 'delivery' ? (order.customer_address || '(chưa nhập)') : 'Nhận tại quán'}${preorderLine}${paymentLine}\n-------------------------\n${lines}\n-------------------------\nTạm tính: ${fmtVnd(order.subtotal)}\nPhí giao: ${fmtVnd(order.shipping_fee)}\nTổng cộng: ${fmtVnd(order.total)}\nTrạng thái: ${order.status.toUpperCase()}`;
-    sendZaloText(text).catch(() => {});
+    sendZaloText(text).catch((err) => console.error('[ZALO] Error:', err));
     if (savedOrder) {
-      sendOrderEmail(savedOrder).catch(() => {});
+      sendOrderEmail(savedOrder).then((result) => {
+        if (!result?.ok) {
+          console.error('[EMAIL] Failed to send order email:', result?.reason || result?.error);
+        }
+      }).catch((err) => console.error('[EMAIL] Exception:', err));
       broadcastRealtime({ type: 'order:new', order: savedOrder });
     }
 
@@ -118,6 +122,31 @@ app.patch('/api/orders/:id/status', async (req, res) => {
 
 app.get('/api/ping', (req, res) => {
   res.json({ ok: true, ts: Date.now() });
+});
+
+app.get('/api/test-email', async (req, res) => {
+  try {
+    const { sendOrderEmail } = await import('./email.js');
+    const testOrder = {
+      id: 999,
+      customer_name: 'Test User',
+      customer_phone: '0123456789',
+      customer_address: 'Test Address',
+      shipping_method: 'delivery',
+      payment_method: 'cod',
+      payment_status: 'unpaid',
+      subtotal: 100000,
+      shipping_fee: 20000,
+      total: 120000,
+      discount_value: 0,
+      items: [{ product_name: 'Test Item', quantity: 1, unit_price: 100000 }],
+      preorder: { enabled: false }
+    };
+    const result = await sendOrderEmail(testOrder);
+    res.json({ ok: result.ok, message: result.ok ? 'Email sent successfully' : (result.reason || result.error) });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
 });
 
 app.get('/api/orders', (req, res) => {

@@ -21,15 +21,25 @@ if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
       pass: SMTP_PASS
     }
   });
+  console.log('[EMAIL] SMTP transporter initialized');
+} else {
+  console.warn('[EMAIL] SMTP config missing:', {
+    hasHost: !!SMTP_HOST,
+    hasPort: !!SMTP_PORT,
+    hasUser: !!SMTP_USER,
+    hasPass: !!SMTP_PASS
+  });
 }
 
 export async function sendOrderEmail(order) {
   try {
     if (!transporter) {
+      console.error('[EMAIL] Cannot send: transporter not initialized');
       return { ok: false, reason: 'Missing SMTP config' };
     }
     const recipients = String(ORDER_EMAIL_TO || '').split(',').map((s) => s.trim()).filter(Boolean);
     if (!recipients.length) {
+      console.error('[EMAIL] Cannot send: no recipients configured');
       return { ok: false, reason: 'Missing ORDER_EMAIL_TO' };
     }
 
@@ -37,15 +47,19 @@ export async function sendOrderEmail(order) {
     const textBody = buildTextBody(order);
     const htmlBody = buildHtmlBody(order);
 
-    await transporter.sendMail({
+    console.log(`[EMAIL] Sending order #${order?.id} to ${recipients.join(', ')}`);
+    const result = await transporter.sendMail({
       from: EMAIL_FROM || `"Xôi Bà Su" <${SMTP_USER}>`,
       to: recipients.join(','),
       subject,
       text: textBody,
       html: htmlBody
     });
-    return { ok: true };
+    console.log('[EMAIL] Sent successfully:', result.messageId);
+    return { ok: true, messageId: result.messageId };
   } catch (err) {
+    console.error('[EMAIL] Send failed:', err.message || err);
+    console.error('[EMAIL] Error details:', err);
     return { ok: false, error: String(err) };
   }
 }

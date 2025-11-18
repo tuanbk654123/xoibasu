@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard Đơn Hàng - Quán Xôi Ngon</title>
+    <meta name="color-scheme" content="light dark" />
+    <style>
+      :root {
+        --bg: #0b0c10;
+        --fg: #e6e6e6;
+        --card: color-mix(in oklab, var(--bg), #fff 6%);
+        --border: color-mix(in oklab, var(--fg), var(--bg) 85%);
+        --muted: #9aa0a6;
+        --accent: #ef4444;
+        --accent-2: #f59e0b;
+        --shadow: 0 10px 30px rgba(0,0,0,.25);
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #ffffff;
+          --fg: #111827;
+          --card: #ffffff;
+          --border: #e5e7eb;
+          --muted: #6b7280;
+          --accent: #dc2626;
+          --accent-2: #f59e0b;
+          --shadow: 0 10px 30px rgba(17,24,39,.08);
+        }
+      }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+      .container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 24px clamp(12px, 3vw, 40px) 64px; }
+      header { display:flex; align-items:center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+      .logo { display:flex; align-items:center; gap:10px; }
+      .logo img { height:46px; width:auto; }
+      .logo .text { display:flex; flex-direction:column; gap:2px; }
+      .logo .text strong { font-size:20px; letter-spacing:1px; }
+      .logo .text span { font-size:12px; color: var(--muted); letter-spacing:2px; text-transform: uppercase; }
+      .btn { appearance:none; border:1px solid var(--border); background: var(--accent); color:#fff; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:700; text-decoration:none; }
+      .btn-outline { background: transparent; color: var(--fg); }
+      .grid { display:grid; gap: 14px; grid-template-columns: 1.2fr 1fr; }
+      @media (max-width: 900px){ .grid{ grid-template-columns: 1fr; } }
+      .card { border:1px solid var(--border); background: var(--card); border-radius: 12px; padding: 12px; box-shadow: var(--shadow); }
+      h2 { margin: 6px 0 10px; font-size: 18px; }
+      table { width:100%; border-collapse: collapse; }
+      th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: left; font-size: 14px; vertical-align: top; }
+      .muted { color: var(--muted); }
+      select, input { padding: 8px 10px; border:1px solid var(--border); background: var(--card); color: var(--fg); border-radius: 8px; }
+      .kpis { display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+      @media (max-width: 900px){ .kpis { grid-template-columns: repeat(2, 1fr); } }
+      .kpi { border:1px solid var(--border); background: var(--card); border-radius: 12px; padding: 12px; }
+      .kpi .value { font-weight: 800; font-size: 22px; }
+      .pill { display:inline-flex; align-items:center; padding: 4px 8px; border-radius: 999px; border:1px solid var(--border); background: color-mix(in oklab, var(--card), #000 0%); font-size: 12px; gap: 6px; }
+      .status-new { background: #2563eb22; border-color: #2563eb66; }
+      .status-confirmed { background: #05966922; border-color: #05966966; }
+      .status-preparing { background: #f59e0b22; border-color: #f59e0b66; }
+      .status-delivering { background: #06b6d422; border-color: #06b6d466; }
+      .status-completed { background: #10b98122; border-color: #10b98166; }
+      .status-cancelled { background: #ef444422; border-color: #ef444466; }
+      .status-scheduled { background: #0ea5e922; border-color: #0ea5e966; }
+      .row-actions {
+        display:flex;
+        gap: 8px;
+        align-items:center;
+      }
+      .row-actions .status-select { display:flex; gap:8px; align-items:center; }
+      .tabs { display:flex; gap:10px; margin:18px 0 10px; flex-wrap:wrap; }
+      .tab-btn { border:1px solid var(--border); background: var(--card); color: var(--fg); padding:8px 16px; border-radius:999px; cursor:pointer; font-weight:600; }
+      .tab-btn.active { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent), transparent 80%); }
+      .tab-content { display:none; }
+      .tab-content.active { display:block; }
+      .notif-bell {
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        border:1px solid var(--border);
+        background: var(--card);
+        color: var(--muted);
+        padding:8px 12px;
+        border-radius:999px;
+        font-weight:600;
+        cursor:pointer;
+        transition:all .2s ease;
+      }
+      .notif-bell span { font-size:13px; }
+      .notif-bell.active {
+        border-color: var(--accent);
+        color: var(--accent);
+        box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent), transparent 70%);
+        animation: bellPulse 1s ease-in-out infinite;
+      }
+      @keyframes bellPulse {
+        0% { transform: translateY(0); }
+        25% { transform: translateY(-2px); }
+        50% { transform: translateY(1px); }
+        75% { transform: translateY(-1px); }
+        100% { transform: translateY(0); }
+      }
+      .notif-panel {
+        position: absolute;
+        right: 16px;
+        top: 78px;
+        width: min(340px, 90vw);
+        border:1px solid var(--border);
+        background: var(--card);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        padding: 10px;
+        display:none;
+        z-index: 30;
+        max-height: 320px;
+        overflow: hidden;
+      }
+      .notif-panel.open { display:block; }
+      .notif-panel h3 { margin: 6px 0 10px; font-size:16px; }
+      .notif-list { list-style:none; padding:0; margin:0; max-height:300px; overflow-y:auto; overscroll-behavior: contain; }
+      .notif-list li { border-bottom:1px solid var(--border); padding:8px 4px; font-size:13px; border-radius: 10px; margin: 2px 0; }
+      .notif-list li.unread { background: color-mix(in oklab, var(--accent), transparent 92%); }
+      .notif-list li:last-child { border-bottom:none; }
+      .notif-time { font-size:12px; color: var(--muted); }
+      .notif-type { font-weight:600; display:block; }
+      .pagination {
+        display:flex;
+        justify-content:flex-end;
+        align-items:center;
+        gap:10px;
+        margin-top:12px;
+      }
+      .page-info { color: var(--muted); font-size: 14px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="logo">
+          <img src="branding/xoi-ba-su-logo.svg" alt="Xôi Bà Su logo" />
+          <div class="text">
+            <strong>Xôi Bà Su</strong>
+            <span>Dashboard đơn hàng</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; position:relative;">
+          <button id="notifBell" class="notif-bell" type="button" title="Thông báo đơn mới">
+            🔔 <span id="notifCount">0</span>
+          </button>
+          <a class="btn btn-outline" href="./shop.html">← Về trang bán xôi</a>
+          <div id="notifPanel" class="notif-panel">
+            <h3>Thông báo</h3>
+            <ul id="notifList" class="notif-list"></ul>
+          </div>
+        </div>
+      </header>
+
+      <section class="kpis" id="kpis">
+        <div class="kpi"><div class="muted">Tổng đơn</div><div id="kpiOrders" class="value">0</div></div>
+        <div class="kpi"><div class="muted">Doanh thu</div><div id="kpiRevenue" class="value">0₫</div></div>
+        <div class="kpi"><div class="muted">Đang chuẩn bị</div><div id="kpiPreparing" class="value">0</div></div>
+        <div class="kpi"><div class="muted">Đang giao</div><div id="kpiDelivering" class="value">0</div></div>
+      </section>
+
+      <div class="card" style="margin-bottom:14px; display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+        <strong>Bộ lọc</strong>
+        <label>Từ ngày <input type="date" id="startDate"/></label>
+        <label>Đến ngày <input type="date" id="endDate"/></label>
+        <label>Trạng thái
+          <select id="statusFilter">
+            <option value="all">Tất cả</option>
+            <option value="new">new</option>
+            <option value="confirmed">confirmed</option>
+            <option value="preparing">preparing</option>
+            <option value="delivering">delivering</option>
+            <option value="completed">completed</option>
+            <option value="cancelled">cancelled</option>
+          </select>
+        </label>
+        <button id="applyFilters" class="btn btn-outline">Áp dụng</button>
+        <button id="exportCsv" class="btn">Xuất CSV</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="orders">Đơn hàng</button>
+        <button class="tab-btn" data-tab="stats">Thống kê</button>
+      </div>
+
+      <section id="ordersView" class="tab-content active">
+        <div class="card">
+          <h2>Đơn hàng</h2>
+          <div style="overflow:auto;">
+            <table id="ordersTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Thời gian</th>
+                  <th>Khách</th>
+                  <th>Thông tin</th>
+                  <th>Tổng</th>
+                  <th>Trạng thái</th>
+                  <th>Thanh toán</th>
+                  <th>Đặt trước</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button id="prevPage" class="btn btn-outline" type="button">← Trang trước</button>
+            <span id="pageInfo" class="page-info">Trang 1</span>
+            <button id="nextPage" class="btn btn-outline" type="button">Trang sau →</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="statsView" class="tab-content">
+        <div class="card">
+          <h2>Doanh thu 7 ngày</h2>
+          <canvas id="revenueChart" height="200"></canvas>
+          <h2 style="margin-top:14px;">Top món bán chạy</h2>
+          <canvas id="topChart" height="200"></canvas>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const currency = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
+      const vnd = n => currency.format(n).replace(/\s?₫/,'₫');
+      const statusList = ['new','scheduled','confirmed','preparing','delivering','completed','cancelled'];
+      const statusMap = {
+        new: 'Mới',
+        confirmed: 'Đã xác nhận',
+        preparing: 'Đang chuẩn bị',
+        delivering: 'Đang giao',
+        completed: 'Hoàn tất',
+        cancelled: 'Đã hủy',
+        scheduled: 'Đặt trước'
+      };
+      const statusText = s => statusMap[s] || s;
+      const statusClass = s => `status-${s}`;
+      const bellEl = document.getElementById('notifBell');
+      const notifCountEl = document.getElementById('notifCount');
+      const notifPanel = document.getElementById('notifPanel');
+      const notifListEl = document.getElementById('notifList');
+      const prevPageBtn = document.getElementById('prevPage');
+      const nextPageBtn = document.getElementById('nextPage');
+      const pageInfoEl = document.getElementById('pageInfo');
+      const tabButtons = document.querySelectorAll('.tab-btn');
+      const tabContents = document.querySelectorAll('.tab-content');
+      const notifications = [];
+      const NOTIF_READ_KEY = 'xbg-notif-read';
+      let readNotificationSet = loadReadNotificationSet();
+      const ORDERS_PAGE_SIZE = 10;
+      const NOTIF_PAGE_SIZE = 10;
+      let unseenCount = 0;
+      let audioCtx;
+      let revenueChartInstance = null;
+      let topChartInstance = null;
+      let activeFilters = {};
+      let ordersState = { page: 1, pages: 1, total: 0, hasNext: false, loading: false, items: [] };
+      let notifPage = 1;
+      let notifHasMore = true;
+      let notifLoading = false;
+
+      function loadReadNotificationSet() {
+        try {
+          const raw = localStorage.getItem(NOTIF_READ_KEY);
+          if (!raw) return new Set();
+          return new Set(JSON.parse(raw).map(Number).filter(Boolean));
+        } catch {
+          return new Set();
+        }
+      }
+
+      function saveReadNotificationSet() {
+        localStorage.setItem(NOTIF_READ_KEY, JSON.stringify(Array.from(readNotificationSet)));
+      }
+
+      function updateUnreadBadge() {
+        unseenCount = notifications.filter(n => !n.read).length;
+        notifCountEl.textContent = unseenCount;
+        if (unseenCount > 0) bellEl?.classList.add('active');
+        else bellEl?.classList.remove('active');
+      }
+
+      function markNotificationRead(orderId) {
+        if (!orderId || readNotificationSet.has(orderId)) return;
+        readNotificationSet.add(orderId);
+        saveReadNotificationSet();
+        notifications.forEach(n => {
+          if (n.orderId === orderId) n.read = true;
+        });
+        renderNotifications();
+      }
+
+      async function fetchJSON(url, opts) {
+        const res = await fetch(url, opts);
+        if (!res.ok) throw new Error('Request failed');
+        return await res.json();
+      }
+      async function refreshOrders() {
+        if (ordersState.loading) return;
+        ordersState.loading = true;
+        const params = new URLSearchParams({ ...activeFilters, limit: ORDERS_PAGE_SIZE, page: ordersState.page });
+        try {
+          const raw = await fetchJSON('/api/orders?' + params.toString());
+          const data = normalizeOrdersResponse(raw, ordersState.page, ORDERS_PAGE_SIZE);
+          ordersState.items = data.items;
+          ordersState.page = data.page || ordersState.page || 1;
+          ordersState.pages = data.pages || Math.max(ordersState.page, 1);
+          ordersState.total = typeof data.total === 'number'
+            ? data.total
+            : Math.max((ordersState.page - 1) * ORDERS_PAGE_SIZE + ordersState.items.length, ordersState.items.length);
+          ordersState.hasNext = data.pages
+            ? ordersState.page < data.pages
+            : (ordersState.items.length === ORDERS_PAGE_SIZE);
+          ordersState.legacy = data.legacy;
+          renderOrders(ordersState.items);
+          updatePaginationControls();
+          seedNotifications({ items: data.items, page: data.page, pages: data.pages });
+        } finally {
+          ordersState.loading = false;
+        }
+      }
+      async function refreshStats() {
+        const qs = new URLSearchParams(activeFilters);
+        const stats = await fetchJSON('/api/stats?' + qs.toString());
+        renderStats(stats);
+      }
+      async function loadAll() {
+        await Promise.all([refreshOrders(), refreshStats()]);
+      }
+      function renderPreorderChip(order) {
+        if (!order) return '<span class="muted">-</span>';
+        const enabled = order.preorder?.enabled || !!order.preorder_date || !!order.preorderDate;
+        const date = order.preorder?.date || order.preorder_date || order.preorderDate || '';
+        const time = order.preorder?.time || order.preorder_time || order.preorderTime || '';
+        if (!enabled || !date) return '<span class="muted">-</span>';
+        return '<div class="pill pill-info">Nhận ' + escapeHtml(date) + (time ? ' ' + escapeHtml(time) : '') + '</div>';
+      }
+
+      function renderOrders(orders) {
+        const tbody = document.querySelector('#ordersTable tbody');
+        if (!orders.length) {
+          tbody.innerHTML = '<tr><td colspan="9" class="muted">Chưa có đơn.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = orders.map(o => `
+          <tr>
+            <td>#${o.id}</td>
+            <td><div>${new Date(o.created_at).toLocaleString('vi-VN')}</div><div class="muted">${o.shipping_method === 'delivery' ? 'Giao' : 'Nhận tại quán'}</div></td>
+            <td><div><strong>${escapeHtml(o.customer_name)}</strong></div><div class="muted">${escapeHtml(o.customer_phone)}</div></td>
+            <td>
+              ${o.items.map(i => `<div>${escapeHtml(i.product_name)} x${i.quantity} <span class="muted">${vnd(i.unit_price)}</span></div>`).join('')}
+              ${o.customer_address ? `<div class="muted">📍 ${escapeHtml(o.customer_address)}</div>` : ''}
+            </td>
+            <td>
+              <strong>${vnd(o.total)}</strong>
+              <div class="muted">Ship: ${vnd(o.shipping_fee)}</div>
+              ${o.discount_value ? `<div class="muted">Giảm: -${vnd(o.discount_value)}</div>` : ''}
+            </td>
+            <td>
+              <span class="pill ${statusClass(o.status)}">${statusText(o.status)}</span>
+            </td>
+            <td>
+              <div class="pill ${o.payment_status === 'paid' ? 'pill-success' : 'pill-warning'}">
+                ${o.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+              </div>
+              <div class="muted">${o.payment_method === 'qr' ? 'Chuyển khoản QR (-10%)' : 'Tiền mặt'}</div>
+            </td>
+            <td>${renderPreorderChip(o)}</td>
+            <td>
+              <div class="row-actions">
+                <select class="status-select" data-id="${o.id}">
+                  ${statusList.map(s => `<option value="${s}" ${s===o.status?'selected':''}>${statusText(s)}</option>`).join('')}
+                </select>
+                <button class=" btn btn-outline" data-action="update" data-id="${o.id}">Cập nhật</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      }
+      function renderStats(stats) {
+        const byStatusMap = Object.fromEntries(stats.byStatus.map(s => [s.status, s.count]));
+        document.getElementById('kpiOrders').textContent = stats.totals.orders;
+        document.getElementById('kpiRevenue').textContent = vnd(stats.totals.revenue);
+        document.getElementById('kpiPreparing').textContent = byStatusMap['preparing'] || 0;
+        document.getElementById('kpiDelivering').textContent = byStatusMap['delivering'] || 0;
+
+        const revCtx = document.getElementById('revenueChart');
+        const days = stats.revenueByDay.map(r => r.day);
+        const revenues = stats.revenueByDay.map(r => r.revenue);
+        if (!revenueChartInstance) {
+          revenueChartInstance = new Chart(revCtx, { type: 'line', data: { labels: days, datasets: [{ label: 'Doanh thu', data: revenues, borderColor: '#ef4444', backgroundColor: '#ef4444' }] }, options: { plugins: { legend: { display: false }}, scales: { y: { ticks: { callback: vnd } } } } });
+        } else {
+          revenueChartInstance.data.labels = days;
+          revenueChartInstance.data.datasets[0].data = revenues;
+          revenueChartInstance.update('none');
+        }
+        const topCtx = document.getElementById('topChart');
+        const labels = stats.topProducts.map(p=>p.name);
+        const counts = stats.topProducts.map(p=>p.qty);
+        if (!topChartInstance) {
+          topChartInstance = new Chart(topCtx, { type: 'bar', data: { labels, datasets: [{ label: 'Số lượng', data: counts, backgroundColor: '#f59e0b' }] }, options: { plugins: { legend: { display: false }}} });
+        } else {
+          topChartInstance.data.labels = labels;
+          topChartInstance.data.datasets[0].data = counts;
+          topChartInstance.update('none');
+        }
+      }
+
+      document.addEventListener('click', async (e) => {
+        if (e.target && e.target.matches('button[data-action="update"]')) {
+          const id = e.target.getAttribute('data-id');
+          const select = document.querySelector(`select[data-id="${id}"]`);
+          const status = select.value;
+          try {
+            await fetchJSON(`/api/orders/${id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+            refreshOrders().catch(console.error);
+          } catch (err) {
+            console.error(err);
+          }
+        }
+      });
+
+      function currentFilters() {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        const status = document.getElementById('statusFilter').value;
+        const params = {};
+        if (start) params.start = start + ' 00:00:00';
+        if (end) params.end = end + ' 23:59:59';
+        if (status && status !== 'all') params.status = status;
+        return params;
+      }
+      document.getElementById('applyFilters').addEventListener('click', () => {
+        activeFilters = currentFilters();
+        resetOrdersState();
+        resetNotificationsState();
+        loadAll().catch(console.error);
+      });
+      document.getElementById('exportCsv').addEventListener('click', () => {
+        const params = new URLSearchParams(activeFilters);
+        window.open('/api/orders/export?' + params.toString(), '_blank');
+      });
+
+      bellEl?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = notifPanel?.classList.toggle('open');
+        if (isOpen && notifications.length === 0) {
+          loadNotificationPage().catch(console.error);
+        }
+        if (isOpen) {
+          markAllNotificationsRead();
+        }
+      });
+      document.addEventListener('click', (e) => {
+        if (!notifPanel?.contains(e.target) && e.target !== bellEl) {
+          notifPanel?.classList.remove('open');
+        }
+      });
+      notifListEl?.addEventListener('scroll', () => {
+        if (!notifPanel.classList.contains('open')) return;
+        if (notifListEl.scrollTop + notifListEl.clientHeight >= notifListEl.scrollHeight - 40) {
+          loadNotificationPage().catch(console.error);
+        }
+      });
+
+      function playChime() {
+        try {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (!Ctx) return;
+          if (!audioCtx) audioCtx = new Ctx();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.2, audioCtx.currentTime + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
+          osc.connect(gain).connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.6);
+        } catch (err) {}
+      }
+
+      function orderToNotification(order, action = 'update') {
+        if (!order) return null;
+        const ts = new Date(order.created_at || Date.now()).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        let title = `Đơn #${order.id}`;
+        let body = `${order.customer_name} • ${vnd(order.total)}`;
+        if (action === 'new') title = `Đơn mới #${order.id}`;
+        if (action === 'status') body = `Trạng thái: ${order.status}`;
+        return {
+          orderId: order.id,
+          title,
+          body,
+          time: ts,
+          read: readNotificationSet.has(order.id)
+        };
+      }
+
+      function addNotification(entry, toTop = true) {
+        if (!entry) return;
+        if (typeof entry.read === 'undefined') {
+          entry.read = readNotificationSet.has(entry.orderId);
+        }
+        if (toTop) notifications.unshift(entry); else notifications.push(entry);
+        if (notifications.length > 200) notifications.pop();
+        renderNotifications();
+      }
+
+      function renderNotifications() {
+        if (!notifListEl) return;
+        if (!notifications.length) {
+          notifListEl.innerHTML = '<li class="muted">Chưa có thông báo.</li>';
+          updateUnreadBadge();
+          return;
+        }
+        notifListEl.innerHTML = notifications.map(item => `
+          <li class="${item.read ? '' : 'unread'}" data-order-id="${item.orderId ?? ''}">
+            <span class="notif-type">${escapeHtml(item.title)}</span>
+            <span>${escapeHtml(item.body)}</span>
+            <div class="notif-time">${item.time}</div>
+          </li>
+        `).join('');
+        updateUnreadBadge();
+      }
+
+      function seedNotifications(payload) {
+        if (!payload || notifications.length) return;
+        const orders = payload.items || [];
+        if (!orders.length) return;
+        orders.slice(0, NOTIF_PAGE_SIZE).forEach(order => {
+          const entry = orderToNotification(order, 'history');
+          notifications.push(entry);
+        });
+        const currentPage = payload.page || 1;
+        const totalPages = payload.pages || 1;
+        notifPage = currentPage + 1;
+        notifHasMore = currentPage < totalPages;
+        renderNotifications();
+      }
+
+      function handleRealtime(payload) {
+        if (!payload) return;
+        if (payload.type === 'order:new') {
+          playChime();
+          const entry = orderToNotification(payload.order, 'new');
+          addNotification(entry, true);
+          upsertOrder(payload.order);
+          refreshStats().catch(console.error);
+        } else if (payload.type === 'order:update') {
+          const entry = orderToNotification(payload.order, 'status');
+          addNotification(entry, true);
+          upsertOrder(payload.order);
+          refreshStats().catch(console.error);
+        }
+      }
+
+      function setupRealtime() {
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const ws = new WebSocket(`${protocol}://${location.host}/ws`);
+        ws.addEventListener('open', () => console.log('[WS] connected'));
+        ws.addEventListener('message', (event) => {
+          try {
+            handleRealtime(JSON.parse(event.data));
+          } catch (err) {
+            console.error('Realtime parse error', err);
+          }
+        });
+        ws.addEventListener('close', () => {
+          console.warn('[WS] disconnected, retrying…');
+          setTimeout(setupRealtime, 3000);
+        });
+        ws.addEventListener('error', (err) => {
+          console.error('[WS] error', err);
+          ws.close();
+        });
+      }
+
+      function escapeHtml(s){
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+        return String(s).replace(/[&<>"']/g, c => map[c]);
+      }
+
+      // defaults: 7 ngày gần nhất
+      (function setDefaultDates() {
+        const end = new Date();
+        const start = new Date(Date.now() - 6*24*3600*1000);
+        document.getElementById('startDate').value = start.toISOString().slice(0,10);
+        document.getElementById('endDate').value = end.toISOString().slice(0,10);
+      })();
+      function updatePaginationControls() {
+        if (pageInfoEl) {
+          const totalText = Number.isFinite(ordersState.total) ? `${ordersState.total} đơn` : 'Không rõ tổng';
+          pageInfoEl.textContent = `Trang ${ordersState.page} / ${ordersState.pages} • ${totalText}`;
+        }
+        if (prevPageBtn) prevPageBtn.disabled = ordersState.page <= 1 || ordersState.loading;
+        if (nextPageBtn) nextPageBtn.disabled = ordersState.page >= ordersState.pages || ordersState.loading;
+      }
+
+      function resetOrdersState() {
+        ordersState = { page: 1, pages: 1, total: 0, hasNext: false, loading: false, items: [] };
+        renderOrders([]);
+        updatePaginationControls();
+      }
+
+      function resetNotificationsState() {
+        notifPage = 1;
+        notifHasMore = true;
+        notifications.length = 0;
+        renderNotifications();
+      }
+
+      async function loadNotificationPage() {
+        if (notifLoading || !notifHasMore) return;
+        notifLoading = true;
+        const params = new URLSearchParams({ ...activeFilters, limit: NOTIF_PAGE_SIZE, page: notifPage });
+        const raw = await fetchJSON('/api/orders?' + params.toString());
+        const data = normalizeOrdersResponse(raw, notifPage, NOTIF_PAGE_SIZE);
+        const orders = data.items;
+        if (!orders.length) {
+          notifHasMore = false;
+          notifLoading = false;
+          return;
+        }
+        orders.forEach(o => {
+          const entry = orderToNotification(o, 'history');
+          addNotification(entry, false);
+        });
+        notifHasMore = data.page < data.pages;
+        notifPage = data.page + 1;
+        notifLoading = false;
+      }
+
+      function normalizeOrdersResponse(raw, fallbackPage, pageSize) {
+        if (Array.isArray(raw)) {
+          const hasMore = raw.length === pageSize;
+          return {
+            items: raw,
+            page: fallbackPage,
+            pages: hasMore ? fallbackPage + 1 : fallbackPage,
+            total: null,
+            legacy: true
+          };
+        }
+        return {
+          items: raw?.items || [],
+          page: raw?.page || fallbackPage || 1,
+          pages: raw?.pages || Math.max(raw?.page || fallbackPage || 1, 1),
+          total: typeof raw?.total === 'number' ? raw.total : null,
+          legacy: false
+        };
+      }
+
+      function upsertOrder(order) {
+        if (!order) return;
+        ordersState.page = 1;
+        refreshOrders().catch(console.error);
+      }
+
+      notifListEl?.addEventListener('click', (e) => {
+        const li = e.target.closest('li[data-order-id]');
+        if (!li) return;
+        const id = Number(li.dataset.orderId);
+        if (!id) return;
+        markNotificationRead(id);
+      });
+
+      function markAllNotificationsRead() {
+        notifications.forEach(item => {
+          if (!item.read && item.orderId) {
+            readNotificationSet.add(item.orderId);
+            item.read = true;
+          } else if (!item.orderId) {
+            item.read = true;
+          }
+        });
+        saveReadNotificationSet();
+        renderNotifications();
+      }
+
+      tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabButtons.forEach(b => b.classList.remove('active'));
+          tabContents.forEach(c => c.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById(btn.dataset.tab + 'View').classList.add('active');
+        });
+      });
+
+      prevPageBtn?.addEventListener('click', () => {
+        if (ordersState.page <= 1 || ordersState.loading) return;
+        ordersState.page -= 1;
+        refreshOrders().catch(console.error);
+      });
+
+      nextPageBtn?.addEventListener('click', () => {
+        if (!ordersState.hasNext || ordersState.loading) return;
+        ordersState.page += 1;
+        refreshOrders().catch(console.error);
+      });
+
+      activeFilters = currentFilters();
+      renderNotifications();
+      loadAll().catch(err => console.error(err));
+      setupRealtime();
+    </script>
+  </body>
+</html>
+
+

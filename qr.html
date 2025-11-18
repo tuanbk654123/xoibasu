@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QR Thanh toán - Xôi Bà Su</title>
+    <style>
+      :root {
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif;
+        color: #0f172a;
+        background: #0b0c10;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: radial-gradient(circle at top, #1f2937, #0b0c10 60%);
+        color: #f8fafc;
+      }
+      .card {
+        width: min(420px, 95vw);
+        background: rgba(15, 23, 42, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 24px;
+        padding: 22px;
+        box-shadow: 0 20px 80px rgba(0,0,0,.45);
+        backdrop-filter: blur(12px);
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 24px;
+        letter-spacing: 1px;
+      }
+      p { margin: 6px 0; color: #cbd5f5; }
+      .qr-box {
+        margin: 18px 0;
+        padding: 14px;
+        border-radius: 20px;
+        background: #fff;
+        text-align: center;
+      }
+      .qr-box img {
+        width: 100%;
+        max-width: 300px;
+        display: block;
+        margin: 0 auto;
+      }
+      .details {
+        display: grid;
+        gap: 6px;
+        margin-top: 14px;
+      }
+      .details div {
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.06);
+        font-size: 15px;
+      }
+      .note {
+        font-weight: 600;
+        color: #f9a826;
+      }
+      button {
+        width: 100%;
+        margin-top: 18px;
+        padding: 12px;
+        border-radius: 12px;
+        border: none;
+        background: #ef4444;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Quét QR thanh toán</h1>
+      <p id="accountInfo"></p>
+      <div class="qr-box">
+        <img id="qrImage" alt="QR thanh toán" />
+      </div>
+      <div class="details">
+        <div><strong>Số tiền:</strong> <span id="amountText"></span></div>
+        <div><strong>Nội dung:</strong> <span id="noteText" class="note"></span></div>
+        <div id="customerText" style="display:none;"></div>
+        <div id="phoneText" style="display:none;"></div>
+      </div>
+      <button type="button" onclick="window.close()">Đã quét xong</button>
+    </div>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const amount = Math.max(0, Number(params.get('amount') || 0));
+      const bank = params.get('bank') || 'mbbank';
+      const account = params.get('account') || '';
+      const name = params.get('name') || 'XOI BA SU';
+      const note = params.get('note') || 'XBS';
+      const customer = params.get('customer') || '';
+      const phone = params.get('phone') || '';
+
+      const fmt = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
+      document.getElementById('amountText').textContent = amount ? fmt.format(amount).replace(/\s?₫/, '₫') : '---';
+      document.getElementById('noteText').textContent = note;
+      document.getElementById('accountInfo').textContent = `Chuyển cho ${name} • STK ${account} (${bank.toUpperCase()})`;
+      if (customer) {
+        const el = document.getElementById('customerText');
+        el.style.display = 'block';
+        el.innerHTML = `<strong>Khách:</strong> ${customer}`;
+      }
+      if (phone) {
+        const el = document.getElementById('phoneText');
+        el.style.display = 'block';
+        el.innerHTML = `<strong>SĐT:</strong> ${phone}`;
+      }
+
+      const qrImg = document.getElementById('qrImage');
+      if (account) {
+        const qrUrl = `https://img.vietqr.io/image/${bank}-${account}-compact2.jpg?amount=${amount}&addInfo=${encodeURIComponent(note)}&accountName=${encodeURIComponent(name)}`;
+        qrImg.src = qrUrl;
+      } else {
+        const fallback = `https://chart.googleapis.com/chart?chs=320x320&cht=qr&chl=${encodeURIComponent(note)}`;
+        qrImg.src = fallback;
+      }
+    </script>
+  </body>
+</html>
+

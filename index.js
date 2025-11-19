@@ -27,10 +27,6 @@ app.use(express.json({ limit: '1mb' }));
 const rootDir = path.resolve(process.cwd(), '..');
 app.use(express.static(rootDir, { extensions: ['html'] }));
 
-// Serve shop.html at root /
-app.get('/', (req, res) => {
-  res.sendFile(path.join(rootDir, 'shop.html'));
-});
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);

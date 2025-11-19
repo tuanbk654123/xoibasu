@@ -23,19 +23,14 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '1mb' }));
 
-// Permanent redirect for root requests on xoibasu.xyz → /shop.html
-app.use((req, res, next) => {
-  const host = (req.headers.host || '').toLowerCase();
-  const isPrimaryHost = host === 'xoibasu.xyz' || host === 'www.xoibasu.xyz';
-  if (isPrimaryHost && req.method === 'GET' && req.path === '/') {
-    return res.redirect(301, 'https://xoibasu.xyz/shop.html');
-  }
-  next();
-});
-
 // Serve the project root statically so /shop.html and /dashboard.html work
 const rootDir = path.resolve(process.cwd(), '..');
 app.use(express.static(rootDir, { extensions: ['html'] }));
+
+// Serve shop.html at root /
+app.get('/', (req, res) => {
+  res.sendFile(path.join(rootDir, 'shop.html'));
+});
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);

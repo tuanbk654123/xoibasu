@@ -4,6 +4,7 @@ import http from 'node:http';
 import 'dotenv/config';
 import { insertOrder, updateOrderStatus, getOrders, getStats, getOrderById } from './db.js';
 import { sendZaloText } from './zalo.js';
+import { sendTelegramMessage } from './telegram.js';
 import { sendOrderEmail } from './email.js';
 import { WebSocketServer } from 'ws';
 
@@ -21,6 +22,16 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: '1mb' }));
+
+// Permanent redirect for root requests on xoibasu.xyz → /shop.html
+app.use((req, res, next) => {
+  const host = (req.headers.host || '').toLowerCase();
+  const isPrimaryHost = host === 'xoibasu.xyz' || host === 'www.xoibasu.xyz';
+  if (isPrimaryHost && req.method === 'GET' && req.path === '/') {
+    return res.redirect(301, 'https://xoibasu.xyz/shop.html');
+  }
+  next();
+});
 
 // Serve the project root statically so /shop.html and /dashboard.html work
 const rootDir = path.resolve(process.cwd(), '..');
@@ -86,7 +97,26 @@ app.post('/api/orders', async (req, res) => {
     const preorderLine = order.preorder?.enabled ? `\n⏰ Nhận: ${order.preorder.date || ''} ${order.preorder.time || ''}` : '';
     const paymentLine = `\n💳 Thanh toán: ${order.payment_status === 'paid' ? 'ĐÃ THANH TOÁN (QR)' : 'Chưa thanh toán'}`;
     const text = `\uD83D\uDCDD Đơn hàng mới #${id}\nKhách: ${order.customer_name}\nSĐT: ${order.customer_phone}\nĐịa chỉ: ${order.shipping_method === 'delivery' ? (order.customer_address || '(chưa nhập)') : 'Nhận tại quán'}${preorderLine}${paymentLine}\n-------------------------\n${lines}\n-------------------------\nTạm tính: ${fmtVnd(order.subtotal)}\nPhí giao: ${fmtVnd(order.shipping_fee)}\nTổng cộng: ${fmtVnd(order.total)}\nTrạng thái: ${order.status.toUpperCase()}`;
+    
+    // Format for Telegram (HTML)
+    const escapeHtml = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const telegramLines = items.map(i => `• ${escapeHtml(i.name)} x${i.qty} = ${fmtVnd(i.qty * i.price)}`).join('\n');
+    const telegramPreorderLine = order.preorder?.enabled ? `\n⏰ <b>Nhận:</b> ${escapeHtml(order.preorder.date || '')} ${escapeHtml(order.preorder.time || '')}` : '';
+    const telegramPaymentLine = `\n💳 <b>Thanh toán:</b> ${order.payment_status === 'paid' ? 'ĐÃ THANH TOÁN (QR)' : 'Chưa thanh toán'}`;
+    const telegramText = `<b>📝 Đơn hàng mới #${id}</b>\n` +
+      `👤 <b>Khách:</b> ${escapeHtml(order.customer_name)}\n` +
+      `📞 <b>SĐT:</b> ${escapeHtml(order.customer_phone)}\n` +
+      `📍 <b>Địa chỉ:</b> ${escapeHtml(order.shipping_method === 'delivery' ? (order.customer_address || '(chưa nhập)') : 'Nhận tại quán')}${telegramPreorderLine}${telegramPaymentLine}\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `${telegramLines}\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `💰 <b>Tạm tính:</b> ${fmtVnd(order.subtotal)}\n` +
+      `🚚 <b>Phí giao:</b> ${fmtVnd(order.shipping_fee)}\n` +
+      `💵 <b>Tổng cộng:</b> ${fmtVnd(order.total)}\n` +
+      `📊 <b>Trạng thái:</b> ${order.status.toUpperCase()}`;
+    
     sendZaloText(text).catch((err) => console.error('[ZALO] Error:', err));
+    sendTelegramMessage(telegramText).catch((err) => console.error('[TELEGRAM] Error:', err));
     if (savedOrder) {
       sendOrderEmail(savedOrder).then((result) => {
         if (!result?.ok) {
@@ -111,7 +141,9 @@ app.patch('/api/orders/:id/status', async (req, res) => {
     if (!allowed.has(status)) return res.status(400).json({ error: 'Invalid status' });
     updateOrderStatus(id, status);
     const savedOrder = getOrderById(id);
-    sendZaloText(`\u26A0\uFE0F Cập nhật trạng thái đơn #${id}: ${status.toUpperCase()}`).catch(() => {});
+    const statusText = `⚠️ Cập nhật trạng thái đơn #${id}: ${status.toUpperCase()}`;
+    sendZaloText(statusText).catch((err) => console.error('[ZALO] Error:', err));
+    sendTelegramMessage(`<b>⚠️ Cập nhật trạng thái</b>\nĐơn #${id}: <b>${status.toUpperCase()}</b>`).catch((err) => console.error('[TELEGRAM] Error:', err));
     if (savedOrder) broadcastRealtime({ type: 'order:update', order: savedOrder });
     res.json({ ok: true });
   } catch (err) {
